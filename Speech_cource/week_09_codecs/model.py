@@ -148,10 +148,20 @@ class MNISTEncoderDecoder(L.LightningModule):
         return loss
 
     def training_step_with_quantizer(self, pictures_batch):
-        # Your code here
-        raise NotImplementedError("TODO: assignment")
+        encoded = self.encoder(pictures_batch)
 
-        # ^^^^^^^^^^^^^^
+        indices = self.quantizer.encode(encoded)
+        quantized = self.quantizer.decode(indices)
+
+    #Straight-through estimator: при прямом проходе мы используем фактические квантованные векторы, но при обратном проходе градиенты из за потерь при декодировании копируются прямо в выходные данные кодера
+        quantized_st = encoded + (quantized - encoded).detach()
+
+        predicted = self.decoder(quantized_st)
+
+        reconstr_loss = self.reconstr_loss_fn(predicted, pictures_batch)
+        vq_loss = self.vq_loss_fn(encoded, quantized)
+
+        loss = reconstr_loss + vq_loss
 
         return loss
 
